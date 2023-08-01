@@ -7,16 +7,16 @@ import matplotlib.pyplot as plt
 from sklearn.preprocessing import LabelEncoder, StandardScaler, MinMaxScaler, RobustScaler
 from sklearn.tree import DecisionTreeClassifier, export_graphviz
 import graphviz
-
 from sklearn.model_selection import RandomizedSearchCV
 from sklearn.tree import DecisionTreeClassifier
 
 
 train = pd.read_csv('C:/Users/monte/Desktop/tesis/train.csv')
+train = pd.read_csv('C:/Users/monte/Desktop/tesis/train.csv')
 test = pd.read_csv('C:/Users/monte/Desktop/tesis/test.csv')
 
 print("Datos de entrenamiento cuerpo:", train.shape) 
-print("Datos de prueba cuerpo:", test.shape) 
+print("Datos de prueba cuerpo:", test.shape)   
 
 train.drop(['id', 'Region_Code', 'Policy_Sales_Channel'], axis=1, inplace=True)
 test.drop(['id', 'Region_Code', 'Policy_Sales_Channel'], axis=1, inplace=True)
@@ -35,18 +35,24 @@ train['Vehicle_Age_lt_1_Year']=train['Vehicle_Age_lt_1_Year'].astype('int')
 train['Vehicle_Age_gt_2_Years']=train['Vehicle_Age_gt_2_Years'].astype('int')
 train['Vehicle_Damage_Yes']=train['Vehicle_Damage_Yes'].astype('int')
 
-nor = ['Age','Vintage']
+nor = ['Age', 'Vintage']
 standard_scaler = StandardScaler().fit(train[nor])
 train[nor] = standard_scaler.transform(train[nor])
+test[nor] = standard_scaler.transform(test[nor])  # Utilizar el mismo escalador
 
 mm = MinMaxScaler().fit(train[['Annual_Premium']])
 train[['Annual_Premium']] = mm.transform(train[['Annual_Premium']])
+test[['Annual_Premium']] = mm.transform(test[['Annual_Premium']])  # Utilizar el mismo escalador
 
+# Separar las etiquetas
 train_target = train['Response']
-train = train.drop(['Response'], axis = 1)
+test_target = test['Response']
+train = train.drop(['Response'], axis=1)
+test = test.drop(['Response'], axis=1)
 
 # División en entrenamiento y prueba
 x_train, x_test, y_train, y_test = train_test_split(train, train_target, random_state=0)
+
 # Parámetros para la búsqueda
 param_dist = {
     'criterion': ['gini', 'entropy'],
