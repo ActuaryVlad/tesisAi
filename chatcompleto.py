@@ -1,15 +1,15 @@
-import pandas as pd 
+import pandas as pd
 import numpy as np
 from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import LabelEncoder
 import seaborn as sns
 import matplotlib.pyplot as plt
-from sklearn.preprocessing import LabelEncoder, StandardScaler, MinMaxScaler, RobustScaler
+from sklearn.preprocessing import StandardScaler, MinMaxScaler, RobustScaler
 from sklearn.tree import DecisionTreeClassifier, export_graphviz
 import graphviz
 from sklearn.model_selection import RandomizedSearchCV
-from sklearn.metrics import accuracy_score, confusion_matrix, precision_score, roc_auc_score, recall_score, f1_score
-
+from sklearn.metrics import accuracy_score, confusion_matrix, precision_score, roc_auc_score, recall_score, f1_score, roc_curve
+from sklearn.naive_bayes import GaussianNB
 
 
 train = pd.read_csv('C:/Users/monte/Desktop/tesis/train.csv')
@@ -113,3 +113,23 @@ print("Confusion Matrix:\n", conf_matrix)
 print("Precision:", precision)
 print("Recall:", recall)
 print("F1 Score:", f1)
+
+# Obtener las probabilidades de la clase positiva
+y_probs = best_model.predict_proba(x_test)[:, 1]
+
+# Calcular los valores de la tasa de verdaderos positivos (TPR) y la tasa de falsos positivos (FPR)
+fpr, tpr, thresholds = roc_curve(y_test, y_probs)
+
+# Graficar la curva ROC
+plt.figure()
+plt.plot(fpr, tpr, label='Curva ROC (área = %0.2f)' % auc_roc)
+plt.plot([0, 1], [0, 1], 'k--') # Linea diagonal
+plt.xlim([0.0, 1.0])
+plt.ylim([0.0, 1.05])
+plt.xlabel('Tasa de Falsos Positivos')
+plt.ylabel('Tasa de Verdaderos Positivos')
+plt.title('Curva ROC')
+plt.legend(loc="lower right")
+plt.show()
+
+
