@@ -11,6 +11,11 @@ from sklearn.model_selection import RandomizedSearchCV
 from sklearn.metrics import accuracy_score, confusion_matrix, precision_score, roc_auc_score, recall_score, f1_score, roc_curve
 from sklearn.naive_bayes import GaussianNB
 from sklearn.ensemble import RandomForestClassifier
+import torch
+import torch.nn as nn
+import torch.nn.functional as F
+import torch.optim as optim
+from torch.utils.data import TensorDataset, DataLoader
 
 
 
@@ -240,3 +245,71 @@ plt.ylabel('Tasa de Verdaderos Positivos')
 plt.title('Curva ROC')
 plt.legend(loc="lower right")
 plt.show()
+
+# Splitting the dataset
+x_train, x_test, y_train, y_test = train_test_split(train, train_target, random_state=0)
+mm = MinMaxScaler()
+x_train[['Vintage']] = mm.fit_transform(x_train[['Vintage']])
+x_test[['Vintage']] = mm.transform(x_test[['Vintage']])
+
+
+# Create PyTorch tensors for train and test data
+x_train_tensor = torch.tensor(x_train.values.astype(np.float32))
+y_train_tensor = torch.tensor(y_train.values.astype(np.int64))
+x_test_tensor = torch.tensor(x_test.values.astype(np.float32))
+y_test_tensor = torch.tensor(y_test.values.astype(np.int64))
+
+# Create DataLoader for batching
+train_dataset = TensorDataset(x_train_tensor, y_train_tensor)
+train_loader = DataLoader(train_dataset, batch_size=128, shuffle=True)
+
+
+# Define neural network model
+class Model(nn.Module):
+    def __init__(self, input_shape):
+        super(Model, self).__init__()
+        self.fc1 = nn.Linear(input_shape, 24)
+        self.fc2 = nn.Linear(24, 20)
+        self.fc3 = nn.Linear(20, 2)
+
+    def forward(self, x):
+        x = F.relu(self.fc1(x))
+        x = F.relu(self.fc2(x))
+        x = F.softmax(self.fc3(x), dim=1)
+        return x
+    
+
+    # Instantiate the model
+model = Model(x_train.shape[1])
+
+# Define loss and optimizer
+ratio = y_train.value_counts()[1] / len(y_train)
+class_weights = torch.tensor([1 - ratio, ratio - 0.1])
+criterion = nn.CrossEntropyLoss(weight=class_weights)
+optimizer = optim.Adam(model.parameters())
+
+
+# Training loop
+EPOCHS = 5
+
+for epoch in range(EPOCHS):
+    for batch_idx, (data, target) in enumerate(train_loader):
+        optimizer.zero_grad()
+        output = model(data)
+        loss = criterion(output, target)
+        loss.backward()
+        optimizer.step()
+    print('Epoch: {}, Loss: {}'.format(epoch, loss.item()))
+
+# Pasada hacia adelante en los datos de prueba
+with torch.no_grad():
+    test_outputs = model(x_test_tensor)
+    predicted_labels = torch.argmax(test_outputs, dim=1)
+
+# Calcular la precisión
+precisión = (predicted_labels == y_test_tensor).float().mean()
+print(f'Precisión: {precisión.item()}')
+
+# Calcular la pérdida usando la función CrossEntropyLoss
+pérdida = criterion(test_outputs, y_test_tensor)
+print(f'Pérdida: {pérdida.item()}')
