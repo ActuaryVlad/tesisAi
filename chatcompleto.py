@@ -10,9 +10,10 @@ import graphviz
 from sklearn.model_selection import RandomizedSearchCV
 from sklearn.metrics import accuracy_score, confusion_matrix, precision_score, roc_auc_score, recall_score, f1_score, roc_curve
 from sklearn.naive_bayes import GaussianNB
+from sklearn.ensemble import RandomForestClassifier
 
 
-train = pd.read_csv('C:/Users/monte/Desktop/tesis/train.csv')
+
 train = pd.read_csv('C:/Users/monte/Desktop/tesis/train.csv')
 test = pd.read_csv('C:/Users/monte/Desktop/tesis/test.csv')
 
@@ -39,17 +40,28 @@ train['Vehicle_Damage_Yes']=train['Vehicle_Damage_Yes'].astype('int')
 nor = ['Age', 'Vintage']
 standard_scaler = StandardScaler().fit(train[nor])
 train[nor] = standard_scaler.transform(train[nor])
-test[nor] = standard_scaler.transform(test[nor])  # Utilizar el mismo escalador
+
 
 mm = MinMaxScaler().fit(train[['Annual_Premium']])
 train[['Annual_Premium']] = mm.transform(train[['Annual_Premium']])
-test[['Annual_Premium']] = mm.transform(test[['Annual_Premium']])  # Utilizar el mismo escalador
+
+# Mapeo de género para el conjunto de prueba
+test['Gender'] = test['Gender'].map( {'Female': 0, 'Male': 1} ).astype(int)
+# Obtener las variables dummies
+test = pd.get_dummies(test, drop_first=True)
+# Renombrar columnas
+test = test.rename(columns={"Vehicle_Age_< 1 Year": "Vehicle_Age_lt_1_Year", "Vehicle_Age_> 2 Years": "Vehicle_Age_gt_2_Years"})
+# Cambio de tipos de datos
+test['Vehicle_Age_lt_1_Year'] = test['Vehicle_Age_lt_1_Year'].astype('int')
+test['Vehicle_Age_gt_2_Years'] = test['Vehicle_Age_gt_2_Years'].astype('int')
+test['Vehicle_Damage_Yes'] = test['Vehicle_Damage_Yes'].astype('int')
+# Aplicar los mismos escaladores
+test[nor] = standard_scaler.transform(test[nor])
+test[['Annual_Premium']] = mm.transform(test[['Annual_Premium']])
 
 # Separar las etiquetas
 train_target = train['Response']
-test_target = test['Response']
 train = train.drop(['Response'], axis=1)
-test = test.drop(['Response'], axis=1)
 
 # División en entrenamiento y prueba
 x_train, x_test, y_train, y_test = train_test_split(train, train_target, random_state=0)
@@ -70,6 +82,8 @@ random_search = RandomizedSearchCV(tree_clf, param_distributions=param_dist, n_i
 
 # Ajusta el modelo
 random_search.fit(x_train, y_train)
+
+
 # 3. Evaluar el Modelo
 print("Mejores parámetros: ", random_search.best_params_)
 best_model = random_search.best_estimator_
@@ -133,3 +147,96 @@ plt.legend(loc="lower right")
 plt.show()
 
 
+#RANDOM FOREST
+# Parámetros para la búsqueda
+param_dist_rf = {
+    'n_estimators': [50, 100, 150],  # Puedes cambiar esto según tus necesidades
+    'criterion': ['gini', 'entropy'],
+    'max_depth': [2, 3, 4, 5, 6, 7, 10],
+    'min_samples_leaf': [4, 6, 8],
+    'min_samples_split': [5, 7, 10]
+}
+
+# Crea un clasificador de Random Forest
+rf_clf = RandomForestClassifier()
+
+# Configura la búsqueda aleatoria
+random_search_rf = RandomizedSearchCV(rf_clf, param_distributions=param_dist_rf, n_iter=10, cv=4, verbose=1, random_state=42, n_jobs=-1)
+
+# Ajusta el modelo
+random_search_rf.fit(x_train, y_train)
+
+# Evaluar el Modelo
+print("Mejores parámetros: ", random_search_rf.best_params_)
+best_model_rf = random_search_rf.best_estimator_
+test_accuracy_rf = best_model_rf.score(x_test, y_test)
+print("Precisión en el conjunto de prueba: ", test_accuracy_rf)
+
+
+# Obtener las probabilidades de la clase positiva
+y_probs_rf = random_search_rf.predict_proba(x_test)[:, 1]
+
+# Calcular el AUC-ROC
+auc_roc_rf = roc_auc_score(y_test, y_probs_rf)
+print("AUC-ROC para Random Forest:", auc_roc_rf)
+
+# Calcular los valores de la tasa de verdaderos positivos (TPR) y la tasa de falsos positivos (FPR)
+fpr_rf, tpr_rf, thresholds_rf = roc_curve(y_test, y_probs_rf)
+
+# Graficar la curva ROC
+plt.figure()
+plt.plot(fpr_rf, tpr_rf, label='Curva ROC Random Forest (área = %0.2f)' % auc_roc_rf)
+plt.plot([0, 1], [0, 1], 'k--') # Linea diagonal
+plt.xlim([0.0, 1.0])
+plt.ylim([0.0, 1.05])
+plt.xlabel('Tasa de Falsos Positivos')
+plt.ylabel('Tasa de Verdaderos Positivos')
+plt.title('Curva ROC Random Forest')
+plt.legend(loc="lower right")
+plt.show()
+
+#Naive bayes
+# Crear un clasificador Gaussian Naive Bayes
+gnb = GaussianNB()
+
+# Entrenar el modelo
+gnb.fit(x_train, y_train)
+
+# Predicción
+y_pred = gnb.predict(x_test)
+
+# Calcular métricas
+accuracy = accuracy_score(y_test, y_pred)
+conf_matrix = confusion_matrix(y_test, y_pred)
+precision = precision_score(y_test, y_pred)
+recall = recall_score(y_test, y_pred)
+f1 = f1_score(y_test, y_pred)
+
+print("Accuracy:", accuracy)
+print("Confusion Matrix:\n", conf_matrix)
+print("Precision:", precision)
+print("Recall:", recall)
+print("F1 Score:", f1)
+
+
+# Obtener las probabilidades de la clase positiva
+y_probs = gnb.predict_proba(x_test)[:, 1]
+
+# Calcular el AUC-ROC
+auc_roc = roc_auc_score(y_test, y_probs)
+print("AUC-ROC:", auc_roc)
+
+# Calcular los valores de la tasa de verdaderos positivos (TPR) y la tasa de falsos positivos (FPR)
+fpr, tpr, thresholds = roc_curve(y_test, y_probs)
+
+# Graficar la curva ROC
+plt.figure()
+plt.plot(fpr, tpr, label='Curva ROC (área = %0.2f)' % auc_roc)
+plt.plot([0, 1], [0, 1], 'k--') # Linea diagonal
+plt.xlim([0.0, 1.0])
+plt.ylim([0.0, 1.05])
+plt.xlabel('Tasa de Falsos Positivos')
+plt.ylabel('Tasa de Verdaderos Positivos')
+plt.title('Curva ROC')
+plt.legend(loc="lower right")
+plt.show()
