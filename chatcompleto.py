@@ -34,6 +34,7 @@ print("Estadisticas descriptivas de los datos numericos:")
 train[datosnumericos].describe()
 
 Variables_categoricas=['Gender','Driving_License','Previously_Insured','Vehicle_Age','Vehicle_Damage','Response']
+#data procesi
 
 train['Gender'] = train['Gender'].map( {'Female': 0, 'Male': 1} ).astype(int)
 train=pd.get_dummies(train,drop_first=True)
@@ -155,7 +156,7 @@ plt.show()
 #RANDOM FOREST
 # Parámetros para la búsqueda
 param_dist_rf = {
-    'n_estimators': [50, 100, 150],  # Puedes cambiar esto según tus necesidades
+    'n_estimators': [50, 100, 150],
     'criterion': ['gini', 'entropy'],
     'max_depth': [2, 3, 4, 5, 6, 7, 10],
     'min_samples_leaf': [4, 6, 8],
@@ -171,15 +172,13 @@ random_search_rf = RandomizedSearchCV(rf_clf, param_distributions=param_dist_rf,
 # Ajusta el modelo
 random_search_rf.fit(x_train, y_train)
 
-# Evaluar el Modelo
-print("Mejores parámetros: ", random_search_rf.best_params_)
+# Evaluar el Modelo usando el mejor modelo obtenido por RandomizedSearchCV
 best_model_rf = random_search_rf.best_estimator_
 test_accuracy_rf = best_model_rf.score(x_test, y_test)
 print("Precisión en el conjunto de prueba: ", test_accuracy_rf)
 
-
 # Obtener las probabilidades de la clase positiva
-y_probs_rf = random_search_rf.predict_proba(x_test)[:, 1]
+y_probs_rf = best_model_rf.predict_proba(x_test)[:, 1]
 
 # Calcular el AUC-ROC
 auc_roc_rf = roc_auc_score(y_test, y_probs_rf)
@@ -199,6 +198,7 @@ plt.ylabel('Tasa de Verdaderos Positivos')
 plt.title('Curva ROC Random Forest')
 plt.legend(loc="lower right")
 plt.show()
+
 
 #Naive bayes
 # Crear un clasificador Gaussian Naive Bayes
@@ -246,8 +246,7 @@ plt.title('Curva ROC')
 plt.legend(loc="lower right")
 plt.show()
 
-# Splitting the dataset
-x_train, x_test, y_train, y_test = train_test_split(train, train_target, random_state=0)
+
 mm = MinMaxScaler()
 x_train[['Vintage']] = mm.fit_transform(x_train[['Vintage']])
 x_test[['Vintage']] = mm.transform(x_test[['Vintage']])
@@ -273,20 +272,24 @@ class Model(nn.Module):
         self.fc3 = nn.Linear(20, 2)
 
     def forward(self, x):
-        x = F.relu(self.fc1(x))
-        x = F.relu(self.fc2(x))
+        x = F.leaky_relu(self.fc1(x), negative_slope=0.01) # puedes cambiar el valor aquí
+        x = F.leaky_relu(self.fc2(x), negative_slope=0.01) # y aquí si lo deseas
         x = F.softmax(self.fc3(x), dim=1)
         return x
-    
 
-    # Instantiate the model
+
+# Instantiate the model
 model = Model(x_train.shape[1])
 
-# Define loss and optimizer
-ratio = y_train.value_counts()[1] / len(y_train)
-class_weights = torch.tensor([1 - ratio, ratio - 0.1])
+# Define the class weights and convert to Float
+class_0_weight = 1 / y_train.value_counts()[0]
+class_1_weight = 1 / y_train.value_counts()[1]
+class_weights = torch.tensor([class_0_weight, class_1_weight], dtype=torch.float)
+
+#Define loss and optimizer
 criterion = nn.CrossEntropyLoss(weight=class_weights)
 optimizer = optim.Adam(model.parameters())
+
 
 
 # Training loop
@@ -301,15 +304,22 @@ for epoch in range(EPOCHS):
         optimizer.step()
     print('Epoch: {}, Loss: {}'.format(epoch, loss.item()))
 
-# Pasada hacia adelante en los datos de prueba
+# Forward pass on test data
 with torch.no_grad():
     test_outputs = model(x_test_tensor)
     predicted_labels = torch.argmax(test_outputs, dim=1)
-
 # Calcular la precisión
 precisión = (predicted_labels == y_test_tensor).float().mean()
 print(f'Precisión: {precisión.item()}')
 
-# Calcular la pérdida usando la función CrossEntropyLoss
-pérdida = criterion(test_outputs, y_test_tensor)
-print(f'Pérdida: {pérdida.item()}')
+#probar el modelo con los datos de prueba
+
+# Convertir los datos de prueba en un tensor
+x_test_tensor = torch.tensor(test.values.astype(np.float32))
+
+# Pasar los datos de prueba a través del modelo
+with torch.no_grad():
+    test_outputs = model(x_test_tensor)
+
+# Obtener las etiquetas predichas
+predicted_labels = torch.argmax(test_outputs, dim=1)
