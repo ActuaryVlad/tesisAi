@@ -117,3 +117,17 @@ with torch.no_grad():
     # Obtener las etiquetas predichas (índice de la probabilidad máxima)
     predicted_labels = torch.argmax(probabilities, dim=1)
 
+
+# Mapeo de género para el conjunto de prueba
+test['Gender'] = test['Gender'].map( {'Female': 0, 'Male': 1} ).astype(int)
+# Obtener las variables dummies
+test = pd.get_dummies(test, drop_first=True)
+# Renombrar columnas
+test = test.rename(columns={"Vehicle_Age_< 1 Year": "Vehicle_Age_lt_1_Year", "Vehicle_Age_> 2 Years": "Vehicle_Age_gt_2_Years"})
+# Cambio de tipos de datos
+test['Vehicle_Age_lt_1_Year'] = test['Vehicle_Age_lt_1_Year'].astype('int')
+test['Vehicle_Age_gt_2_Years'] = test['Vehicle_Age_gt_2_Years'].astype('int')
+test['Vehicle_Damage_Yes'] = test['Vehicle_Damage_Yes'].astype('int')
+# Aplicar los mismos escaladores
+test[nor] = standard_scaler.transform(test[nor])
+test[['Annual_Premium']] = mm.transform(test[['Annual_Premium']])
