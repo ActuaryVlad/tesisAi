@@ -48,20 +48,21 @@ y_test_tensor = torch.tensor(y_test.values.astype(np.int64))
 
 # Create DataLoader for batching
 train_dataset = TensorDataset(x_train_tensor, y_train_tensor)
-train_loader = DataLoader(train_dataset, batch_size=128, shuffle=True)
+train_loader = DataLoader(train_dataset, batch_size=30, shuffle=True)
 
 class Model(nn.Module):
     def __init__(self, input_shape):
         super(Model, self).__init__()
-        self.fc1 = nn.Linear(input_shape, 24)
-        self.fc2 = nn.Linear(24, 20)
-        self.fc3 = nn.Linear(20, 2)
+        self.fc1 = nn.Linear(input_shape, 15)
+        self.fc2 = nn.Linear(15, 15)
+        self.fc3 = nn.Linear(15, 2)
 
     def forward(self, x):
-        x = F.leaky_relu(self.fc1(x), negative_slope=0.01) # puedes cambiar el valor aquí
-        x = F.leaky_relu(self.fc2(x), negative_slope=0.01) # y aquí si lo deseas
-        x = F.softmax(self.fc3(x), dim=1)
+        x = F.relu(self.fc1(x))  
+        x = F.relu(self.fc2(x))  
+        x = self.fc3(x)  
         return x
+
 
 # Instantiate the model
 model = Model(x_train.shape[1])
@@ -71,10 +72,9 @@ class_0_weight = 1 / y_train.value_counts()[0]
 class_1_weight = 1 / y_train.value_counts()[1]
 class_weights = torch.tensor([class_0_weight, class_1_weight], dtype=torch.float)
 
-
 # Define loss and optimizer
 criterion = nn.CrossEntropyLoss(weight=class_weights)
-optimizer = optim.Adam(model.parameters())
+optimizer = optim.Adam(model.parameters(), lr=0.001)  # Estableciendo tasa de aprendizaje a 0.01
 
 # Training loop
 EPOCHS = 5
@@ -92,13 +92,3 @@ for epoch in range(EPOCHS):
 with torch.no_grad():
     test_outputs = model(x_test_tensor)
     predicted_labels = torch.argmax(test_outputs, dim=1)
-
-# Convertir los datos de prueba en un tensor
-x_test_tensor = torch.tensor(test.values.astype(np.float32))
-
-# Pasar los datos de prueba a través del modelo
-with torch.no_grad():
-    test_outputs = model(x_test_tensor)
-
-# Obtener las etiquetas predichas
-predicted_labels = torch.argmax(test_outputs, dim=1)
