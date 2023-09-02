@@ -75,9 +75,8 @@ class_weights = torch.tensor([class_0_weight, class_1_weight], dtype=torch.float
 # Define loss and optimizer
 criterion = nn.CrossEntropyLoss(weight=class_weights)
 optimizer = optim.Adam(model.parameters(), lr=0.001)  # Estableciendo tasa de aprendizaje a 0.01
-
 # Training loop
-EPOCHS = 5
+EPOCHS = 4
 
 for epoch in range(EPOCHS):
     for batch_idx, (data, target) in enumerate(train_loader):
@@ -92,3 +91,29 @@ for epoch in range(EPOCHS):
 with torch.no_grad():
     test_outputs = model(x_test_tensor)
     predicted_labels = torch.argmax(test_outputs, dim=1)
+
+# Convertir los datos de prueba en un tensor
+x_test_tensor = torch.tensor(test.values.astype(np.float32))
+
+# Pasar los datos de prueba a través del modelo
+with torch.no_grad():
+    test_outputs = model(x_test_tensor)
+
+# Obtener las etiquetas predichas
+predicted_labels = torch.argmax(test_outputs, dim=1)
+
+import torch.nn.functional as F
+
+# Asegúrate de poner tu modelo en modo de evaluación
+model.eval()
+
+# Suponiendo que x_test_tensor contiene tus datos de prueba
+with torch.no_grad():
+    test_outputs = model(x_test_tensor)
+    
+    # Aplicar la función Softmax para convertir las salidas en probabilidades
+    probabilities = F.softmax(test_outputs, dim=1)
+    
+    # Obtener las etiquetas predichas (índice de la probabilidad máxima)
+    predicted_labels = torch.argmax(probabilities, dim=1)
+
